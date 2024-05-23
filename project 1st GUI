@@ -1,0 +1,123 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import pandas as pd
+
+def save_data():
+    employee_data = []
+    for row in entries:
+        employee_name = row['name'].get()
+        contract_hours = row['contract_hours'].get()
+        if not employee_name or not contract_hours:
+            messagebox.showwarning("Input Error", "Please fill all name and contract hours fields")
+            return
+        
+        for day in days:
+            work_status = row['days'][day]['work'].get()
+            
+            # Check if it's a work day
+            if work_status == 'Work':
+                day_shift = row['days'][day]['day'].get()
+                mid_shift = row['days'][day]['mid'].get()
+                eve_shift = row['days'][day]['eve'].get()
+            else:
+                day_shift = mid_shift = eve_shift = 0
+            
+            employee_data.append([employee_name, contract_hours, day, work_status, day_shift, mid_shift, eve_shift])
+    
+    df = pd.DataFrame(employee_data, columns=['Employee', 'Contract Hours', 'Day', 'Work', 'Day Shift', 'Mid Shift', 'Eve Shift'])
+    df.to_csv('employee_schedule.csv', index=False)
+    messagebox.showinfo("Success", "Data saved successfully")
+
+# Create the main window
+root = tk.Tk()
+root.title("Employees Weekly Shift Schedule")
+root.geometry("1200x600")  # Set initial size of the window
+
+# Add a colored canvas with "ARCADA CAFFE" text
+canvas = tk.Canvas(root, height=100, bg='lightblue')
+canvas.grid(row=0, column=0, columnspan=9, sticky='ew')
+canvas.create_text(600, 16, text="ARCADA CAFFE", fill="black", font=('Helvetica', 24, 'bold'))
+
+days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+# Add column headers for days
+for col, day in enumerate(["Name", "Contract Hours"] + days, start=0):
+    tk.Label(root, text=day, font=('Arial', 12, 'bold')).grid(row=0, column=col, padx=10, pady=10, sticky='ew')
+
+entries = []
+
+# Function to handle work/offday selection
+def toggle_work(row, day):
+    def handler(*args):
+        if row['days'][day]['work'].get() == 'Work':
+            row['days'][day]['shift_frame'].grid()
+        else:
+            row['days'][day]['shift_frame'].grid_remove()
+    return handler
+
+# Function to add a new row for employee
+def add_employee_row():
+    row = {}
+    row_idx = len(entries) * 4 + 1  # Multiply by 4 to account for extra space
+    
+    row['name'] = tk.Entry(root, width=20)
+    row['name'].grid(row=row_idx, column=0, padx=10, pady=20, sticky='ew')
+
+    row['contract_hours'] = tk.Entry(root, width=10)
+    row['contract_hours'].grid(row=row_idx, column=1, padx=10, pady=20, sticky='ew')
+
+    row['days'] = {}
+    row['row_idx'] = row_idx
+
+    for col, day in enumerate(days, start=2):
+        row['days'][day] = {}
+        
+        # Work/Offday selection
+        row['days'][day]['work'] = tk.StringVar(value='Offday')
+        work_cb = ttk.Combobox(root, textvariable=row['days'][day]['work'], values=['Work', 'Offday'], width=10)
+        work_cb.grid(row=row_idx, column=col, padx=10, pady=20, sticky='ew')
+        work_cb.bind("<<ComboboxSelected>>", toggle_work(row, day))
+        
+        # Shift selection frame (hidden initially)
+        row['days'][day]['shift_frame'] = tk.Frame(root)
+        
+        # Shift checkboxes
+        row['days'][day]['day'] = tk.IntVar()
+        row['days'][day]['mid'] = tk.IntVar()
+        row['days'][day]['eve'] = tk.IntVar()
+        
+        day_cb = tk.Checkbutton(row['days'][day]['shift_frame'], text='Day', variable=row['days'][day]['day'])
+        day_cb.grid(row=0, column=0, padx=(0, 2), pady=5, sticky='w')
+        
+        mid_cb = tk.Checkbutton(row['days'][day]['shift_frame'], text='Mid', variable=row['days'][day]['mid'])
+        mid_cb.grid(row=0, column=1, padx=(2, 2), pady=5, sticky='w')
+        
+        eve_cb = tk.Checkbutton(row['days'][day]['shift_frame'], text='Eve', variable=row['days'][day]['eve'])
+        eve_cb.grid(row=0, column=2, padx=(2, 0), pady=5, sticky='w')
+
+        # Hide shift frame initially
+        row['days'][day]['shift_frame'].grid(row=row_idx + 1, column=col, padx=10, pady=5, sticky='nsew')
+        row['days'][day]['shift_frame'].grid_remove()
+        
+    entries.append(row)
+
+# Add initial rows for employees
+for _ in range(5):
+    add_employee_row()
+
+# Add button to save data
+save_button = tk.Button(root, text="Save Data", command=save_data)
+save_button.grid(row=(len(entries)+1)*4, column=0, columnspan=len(days)+2, padx=10, pady=20, sticky='ew')
+
+add_row_button = tk.Button(root, text="Add Employee", command=add_employee_row)
+add_row_button.grid(row=(len(entries)+2)*4 + 1, column=0, columnspan=len(days)+2, padx=10, pady=20, sticky='ew')
+
+# Configure column and row weights
+for i in range(len(days) + 2):
+    root.columnconfigure(i, weight=1)
+
+for i in range((len(entries) + 1) * 4 + 2):
+    root.rowconfigure(i, weight=1)
+
+# Run the main loop
+root.mainloop()
